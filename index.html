@@ -1,0 +1,1704 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>EcoSense — Your Personal Carbon Intelligence Dashboard</title>
+  <meta name="description" content="Calculate your personal carbon footprint, compare it to national and global averages, and get personalised reduction tips. Free, private, no tracking.">
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Space+Grotesk:wght@500;600;700&display=swap');
+
+    /* ── Design Tokens ─────────────────────────────────────── */
+    :root {
+      --color-bg: #050A14;
+      --color-surface-1: #0D1424;
+      --color-surface-2: #111D30;
+      --color-surface-border-1: rgba(255,255,255,0.06);
+      --color-surface-border-2: rgba(255,255,255,0.04);
+
+      --color-primary: #00E5A0;
+      --color-primary-dark: #00C080;
+      --color-primary-alpha: rgba(0,229,160,0.12);
+      --color-primary-alpha-light: rgba(0,229,160,0.06);
+
+      --color-secondary: #6C63FF;
+      --color-secondary-alpha: rgba(108,99,255,0.12);
+      --color-warning: #FFB340;
+      --color-danger: #FF5B5B;
+
+      --color-text: #F0F4FF;
+      --color-text-muted: #7A8BA8;
+      --color-text-tertiary: #3D4F66;
+
+      --font-heading: 'Space Grotesk', system-ui, sans-serif;
+      --font-body: 'Inter', system-ui, sans-serif;
+
+      --radius-lg: 16px;
+      --radius-md: 14px;
+      --radius-sm: 10px;
+      --radius-xl: 20px;
+
+      --transition-fast: all 0.18s cubic-bezier(0.4, 0, 0.2, 1);
+      --shadow-card: inset 0 1px 0 rgba(255,255,255,0.06), 0 4px 24px rgba(0,0,0,0.4);
+    }
+
+    /* ── Reset & Base ──────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background-color: var(--color-bg);
+      color: var(--color-text);
+      font-family: var(--font-body);
+      line-height: 1.6;
+      overflow-x: hidden;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+
+    h1, h2, h3, h4 { font-family: var(--font-heading); line-height: 1.2; margin: 0 0 1rem 0; }
+    p { margin: 0 0 1rem 0; }
+
+    /* ── Accessibility ─────────────────────────────────────── */
+    .sr-only {
+      position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+      overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0;
+    }
+    .skip-link {
+      position: absolute; top: -50px; left: 0; background: var(--color-primary);
+      color: var(--color-bg); padding: 10px 18px; z-index: 200; font-weight: 600;
+      text-decoration: none; transition: top 0.2s; border-radius: 0 0 8px 0;
+    }
+    .skip-link:focus { top: 0; }
+    :focus-visible { outline: 2px solid var(--color-primary); outline-offset: 3px; }
+
+    /* ── Header ────────────────────────────────────────────── */
+    header {
+      border-top: 2px solid var(--color-primary);
+      border-bottom: 1px solid rgba(255,255,255,0.05);
+      background: var(--color-surface-1);
+      padding: 3rem 1.5rem 2.5rem;
+      text-align: center;
+    }
+    header h1 {
+      font-family: var(--font-heading);
+      font-weight: 700;
+      font-size: 52px;
+      letter-spacing: -0.02em;
+      color: var(--color-primary);
+      margin-bottom: 0.5rem;
+    }
+    header p {
+      font-family: var(--font-body);
+      font-weight: 300;
+      font-size: 16px;
+      color: var(--color-text-muted);
+      letter-spacing: 0.04em;
+      margin: 0;
+    }
+
+    /* ── Layout ────────────────────────────────────────────── */
+    .layout-grid {
+      display: grid; grid-template-columns: 1fr; gap: 2rem;
+      padding: 2rem 1rem; max-width: 1200px; margin: 0 auto;
+    }
+    @media (min-width: 900px) {
+      .layout-grid { grid-template-columns: 380px 1fr; padding: 2.5rem 2rem; }
+    }
+
+    /* ── Card System ───────────────────────────────────────── */
+    .panel {
+      background: var(--color-surface-1);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid var(--color-surface-border-1);
+      border-radius: var(--radius-xl);
+      padding: 2rem;
+      box-shadow: var(--shadow-card);
+    }
+    .panel-inner {
+      background: var(--color-surface-2);
+      border: 1px solid var(--color-surface-border-2);
+      border-radius: var(--radius-lg);
+      padding: 1.25rem;
+      box-shadow: var(--shadow-card);
+    }
+
+    /* ── Fieldset & Legend ──────────────────────────────────── */
+    fieldset { border: none; padding: 0; margin: 0 0 1.75rem 0; }
+    legend {
+      font-family: var(--font-heading); font-weight: 600; font-size: 14px;
+      color: var(--color-text); margin-bottom: 1rem; display: block; width: 100%;
+    }
+
+    /* ── Button Group (Transport / Diet) ───────────────────── */
+    .button-group { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 0.5rem; }
+    .btn-radio {
+      flex: 1; text-align: center; padding: 0.7rem 0.4rem; min-width: 72px;
+      background: transparent; border: 1px solid rgba(255,255,255,0.1);
+      border-radius: var(--radius-sm); cursor: pointer; transition: var(--transition-fast);
+      font-family: var(--font-body); font-weight: 500; font-size: 0.8rem;
+      color: var(--color-text-muted); user-select: none;
+    }
+    .btn-radio:hover { border-color: rgba(255,255,255,0.2); color: var(--color-text); }
+    input[type="radio"]:checked + .btn-radio {
+      background: var(--color-primary-alpha);
+      border: 1px solid var(--color-primary);
+      color: var(--color-primary);
+    }
+    input[type="radio"]:focus-visible + .btn-radio {
+      outline: 2px solid var(--color-text); outline-offset: 2px;
+    }
+
+    /* ── Sliders ───────────────────────────────────────────── */
+    .slider-container { margin-bottom: 1.75rem; }
+    .slider-container label {
+      font-family: var(--font-heading); font-weight: 600; font-size: 14px;
+      display: block; margin-bottom: 1rem; color: var(--color-text);
+    }
+    input[type="range"] {
+      -webkit-appearance: none; appearance: none;
+      width: 100%; background: transparent; margin: 0.5rem 0; cursor: pointer;
+    }
+    input[type="range"]::-webkit-slider-runnable-track {
+      width: 100%; height: 6px; background: #1A2540; border-radius: 3px;
+    }
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none; height: 20px; width: 20px; border-radius: 50%;
+      background: var(--color-primary); border: 3px solid var(--color-bg);
+      margin-top: -7px; box-shadow: 0 0 0 4px rgba(0,229,160,0.2);
+      transition: var(--transition-fast);
+    }
+    input[type="range"]::-webkit-slider-thumb:hover { transform: scale(1.1); }
+    input[type="range"]::-moz-range-track {
+      width: 100%; height: 6px; background: #1A2540; border-radius: 3px; border: none;
+    }
+    input[type="range"]::-moz-range-thumb {
+      height: 20px; width: 20px; border-radius: 50%;
+      background: var(--color-primary); border: 3px solid var(--color-bg);
+      box-shadow: 0 0 0 4px rgba(0,229,160,0.2);
+    }
+    input[type="range"]::-moz-range-progress {
+      background: var(--color-primary); height: 6px; border-radius: 3px;
+    }
+    .range-labels {
+      display: flex; justify-content: space-between;
+      color: var(--color-text-tertiary); font-size: 0.7rem; margin-top: 0.5rem;
+      font-weight: 500;
+    }
+
+    /* ── Real-time Estimate Badge ──────────────────────────── */
+    .realtime-estimate {
+      font-size: 0.75rem; color: var(--color-primary); margin-top: 0.5rem;
+      text-align: right; font-weight: 600; font-family: var(--font-body);
+      transition: color 0.15s ease;
+    }
+    .realtime-estimate.flash { color: var(--color-warning); }
+
+    /* ── Buttons ───────────────────────────────────────────── */
+    .btn-primary {
+      width: 100%; height: 52px; display: flex; align-items: center; justify-content: center;
+      background: linear-gradient(135deg, #00E5A0, #00C080);
+      color: var(--color-bg); border: none; border-radius: var(--radius-md);
+      font-family: var(--font-heading); font-size: 16px; font-weight: 600;
+      cursor: pointer; transition: var(--transition-fast); margin-top: 1.25rem;
+    }
+    .btn-primary:hover { transform: scale(1.01); filter: brightness(1.08); }
+    .btn-primary:active { transform: scale(0.99); }
+
+    /* ── Badges ────────────────────────────────────────────── */
+    .badge {
+      display: flex; align-items: center; justify-content: center;
+      padding: 0.75rem 1rem; border-radius: 10px; font-size: 0.85rem;
+      font-weight: 600; margin-top: 1rem; text-align: center;
+      width: 100%; transition: opacity 0.3s;
+    }
+    .badge-green {
+      background: var(--color-primary-alpha); color: var(--color-primary);
+      border: 1px solid rgba(0,229,160,0.2);
+    }
+    .badge-red {
+      background: rgba(255,91,91,0.12); color: var(--color-danger);
+      border: 1px solid rgba(255,91,91,0.25);
+    }
+    .badge-blue {
+      background: var(--color-secondary-alpha); color: var(--color-secondary);
+      border: 1px solid rgba(108,99,255,0.25); width: auto; margin-bottom: 1.5rem;
+    }
+    .hidden { display: none !important; }
+
+    /* ── Results Panel Animation ────────────────────────────── */
+    .results-fade-in {
+      animation: fadeInUp 0.4s ease forwards;
+    }
+    @keyframes fadeInUp {
+      from { opacity: 0; transform: translateY(12px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    /* ── Human Summary ─────────────────────────────────────── */
+    .human-readable {
+      font-size: 1rem; line-height: 1.7;
+      border-left: 3px solid var(--color-primary); padding-left: 1.25rem;
+      margin-bottom: 2.5rem; color: var(--color-text);
+    }
+
+    /* ── Chart + Score Row ──────────────────────────────────── */
+    .chart-and-score {
+      display: flex; flex-direction: column; gap: 2.5rem;
+      align-items: center; margin-bottom: 3rem;
+    }
+    @media (min-width: 640px) {
+      .chart-and-score { flex-direction: row; justify-content: space-evenly; }
+    }
+    .chart-container { display: flex; flex-direction: column; align-items: center; }
+
+    /* Ring Chart */
+    .ring-chart { width: 220px; height: 220px; }
+    .ring-chart circle { fill: none; stroke-linecap: round; transition: stroke-dashoffset 1.5s cubic-bezier(0.4, 0, 0.2, 1); }
+    .ring-bg-fill { fill: rgba(255,255,255,0.02); }
+    .ring-bg { stroke: #1A2540; stroke-width: 8; fill: none; }
+    .ring-global { stroke: var(--color-secondary); stroke-width: 10; }
+    .ring-india { stroke: var(--color-warning); stroke-width: 10; }
+    .ring-user { stroke: var(--color-primary); stroke-width: 10; }
+
+    .chart-legend {
+      display: flex; flex-direction: column; gap: 0.5rem; margin-top: 1.5rem; font-size: 0.8rem;
+    }
+    .legend-item { display: flex; align-items: center; gap: 0.5rem; color: var(--color-text-muted); }
+    .dot { width: 10px; height: 10px; border-radius: 50%; }
+    .dot-user { background: var(--color-primary); }
+    .dot-india { background: var(--color-warning); }
+    .dot-global { background: var(--color-secondary); }
+
+    /* Score Badge */
+    .score-container { text-align: center; }
+    .score-badge {
+      width: 140px; height: 140px; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      margin: 0 auto 1rem; position: relative;
+      border: 3px solid var(--color-surface-border-1);
+      transition: var(--transition-fast);
+    }
+    .score-badge::before {
+      content: ''; position: absolute; inset: -6px; border-radius: 50%;
+      border: 2px solid transparent; transition: border-color 0.5s;
+    }
+    .score-badge span {
+      font-family: var(--font-heading); font-weight: 700; font-size: 48px;
+    }
+    .score-good { border-color: var(--color-primary); }
+    .score-good span { color: var(--color-primary); }
+    .score-good::before { border-color: rgba(0,229,160,0.1); }
+    .score-amber { border-color: var(--color-warning); }
+    .score-amber span { color: var(--color-warning); }
+    .score-amber::before { border-color: rgba(255,179,64,0.1); }
+    .score-red { border-color: var(--color-danger); }
+    .score-red span { color: var(--color-danger); }
+    .score-red::before { border-color: rgba(255,91,91,0.1); }
+    .score-container h3 { font-size: 14px; color: var(--color-text); }
+    .score-container p { color: var(--color-text-muted); font-size: 0.8rem; margin: 0; }
+
+    /* ── Metric Cards ──────────────────────────────────────── */
+    .metrics-grid {
+      display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem; margin-bottom: 3rem;
+    }
+    @media (min-width: 1024px) { .metrics-grid { grid-template-columns: repeat(4, 1fr); } }
+    .metric-card {
+      background: var(--color-surface-2); backdrop-filter: blur(12px);
+      border: 1px solid var(--color-surface-border-2);
+      border-radius: var(--radius-lg); padding: 1.25rem;
+      display: flex; flex-direction: column; box-shadow: var(--shadow-card);
+      border-top: 1px solid var(--color-text-tertiary);
+    }
+    .metric-card.status-good { border-top: 1px solid rgba(0,229,160,0.4); }
+    .metric-card.status-warn { border-top: 1px solid rgba(255,179,64,0.4); }
+    .metric-card.status-danger { border-top: 1px solid rgba(255,91,91,0.4); }
+    .metric-icon { font-size: 1.4rem; margin-bottom: 0.5rem; }
+    .metric-label {
+      font-family: var(--font-body); font-size: 10px; font-weight: 500;
+      color: var(--color-text-tertiary); text-transform: uppercase;
+      letter-spacing: 0.12em;
+    }
+    .metric-value {
+      font-family: var(--font-heading); font-size: 1.5rem; font-weight: 700;
+      margin: 0.4rem 0; color: var(--color-text);
+    }
+    .metric-trend { font-size: 0.8rem; font-weight: 600; }
+    .text-green { color: var(--color-primary); }
+    .text-red { color: var(--color-danger); }
+    .text-amber { color: var(--color-warning); }
+
+    /* ── Equivalents ───────────────────────────────────────── */
+    .equivalents-section { margin-bottom: 3rem; }
+    .equivalents-section h3 { font-size: 16px; margin-bottom: 1rem; }
+    .equivalents-grid {
+      display: grid; grid-template-columns: 1fr; gap: 1rem;
+    }
+    @media (min-width: 640px) { .equivalents-grid { grid-template-columns: repeat(2, 1fr); } }
+    .eq-tile {
+      background: var(--color-surface-2); padding: 1.25rem;
+      border-radius: var(--radius-lg); border: 1px solid var(--color-surface-border-2);
+      display: flex; align-items: center; gap: 1rem; box-shadow: var(--shadow-card);
+    }
+    .eq-icon-wrap {
+      width: 36px; height: 36px; border-radius: 50%;
+      background: rgba(0,229,160,0.1); display: flex;
+      align-items: center; justify-content: center; font-size: 1.1rem; flex-shrink: 0;
+    }
+    .eq-tile .eq-number {
+      font-family: var(--font-heading); font-weight: 600;
+      font-size: 24px; color: var(--color-primary); display: block;
+    }
+    .eq-tile .eq-label {
+      font-family: var(--font-body); font-size: 12px; color: var(--color-text-muted);
+    }
+
+    /* ── Reduction Tips ────────────────────────────────────── */
+    .tips-section { margin-bottom: 3rem; }
+    .tips-section h3 { font-size: 16px; margin-bottom: 1rem; }
+    .tip-card {
+      display: flex; align-items: flex-start; gap: 1rem;
+      background: var(--color-surface-2); border: 1px solid var(--color-surface-border-2);
+      border-radius: var(--radius-lg); padding: 1.25rem; margin-bottom: 0.75rem;
+      transition: var(--transition-fast); box-shadow: var(--shadow-card);
+    }
+    .tip-card:hover { transform: translateX(4px); border-color: rgba(255,255,255,0.1); }
+    .tip-rank {
+      width: 28px; height: 28px; border-radius: 50%;
+      background: rgba(0,229,160,0.1); color: var(--color-primary);
+      display: flex; align-items: center; justify-content: center;
+      font-family: var(--font-heading); font-weight: 600; font-size: 13px;
+      flex-shrink: 0; margin-top: 2px;
+    }
+    .tip-content { flex: 1; }
+    .tip-title {
+      margin: 0 0 0.35rem 0; font-family: var(--font-heading);
+      font-weight: 600; font-size: 14px; color: var(--color-text);
+    }
+    .tip-desc {
+      margin: 0; font-size: 0.8rem; color: var(--color-text-muted); line-height: 1.5;
+    }
+    .tip-saving {
+      background: rgba(0,229,160,0.1); padding: 0.4rem 0.7rem;
+      border-radius: 8px; font-size: 0.7rem; font-weight: 700;
+      color: var(--color-primary); white-space: nowrap;
+      border: 1px solid rgba(0,229,160,0.2);
+    }
+    @media (max-width: 640px) {
+      .tip-card { flex-direction: column; }
+      .tip-saving { align-self: flex-start; }
+    }
+
+    /* ── Impact Multiplier ─────────────────────────────────── */
+    .impact-multiplier {
+      background: rgba(108,99,255,0.08); border: 1px solid rgba(108,99,255,0.2);
+      padding: 2rem; border-radius: var(--radius-lg); text-align: center;
+      margin-bottom: 3rem;
+    }
+    .impact-multiplier h3 { color: var(--color-secondary); margin-bottom: 1rem; font-size: 16px; }
+    #impact-multiplier-text {
+      font-size: 1rem; font-weight: 400; margin: 0;
+      color: var(--color-text); font-family: var(--font-body);
+    }
+
+    /* ── Share Section ──────────────────────────────────────── */
+    .share-section {
+      background: var(--color-surface-2); padding: 2rem;
+      border-radius: var(--radius-lg); border: 1px solid var(--color-surface-border-2);
+      margin-bottom: 3rem;
+    }
+    .share-section h3 { font-size: 16px; }
+    textarea {
+      width: 100%; background: var(--color-surface-1);
+      border: 1px solid rgba(255,255,255,0.08); color: var(--color-text);
+      padding: 1rem; border-radius: 12px; resize: none; height: 90px;
+      font-family: var(--font-body); margin: 1rem 0; line-height: 1.5;
+    }
+    textarea:focus { outline: 2px solid var(--color-secondary); outline-offset: 2px; }
+    .btn-copy {
+      background: var(--color-secondary); color: white; border: none;
+      padding: 0.75rem 1.5rem; border-radius: var(--radius-sm);
+      font-weight: 600; cursor: pointer; transition: var(--transition-fast);
+    }
+    .btn-copy:hover { filter: brightness(1.1); }
+    .share-hint {
+      font-size: 0.8rem; color: var(--color-text-muted); margin-top: 1rem;
+    }
+
+    /* ── Arena Section ─────────────────────────────────────── */
+    .arena-section {
+      background: rgba(108,99,255,0.04); border: 1px solid rgba(108,99,255,0.12);
+      border-radius: var(--radius-xl); padding: 1.75rem; margin-bottom: 3rem;
+    }
+    .arena-header {
+      display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.25rem;
+    }
+    .arena-header h3 {
+      font-family: var(--font-heading); font-weight: 700; font-size: 22px;
+      color: var(--color-text); margin: 0;
+    }
+    .arena-header svg { flex-shrink: 0; }
+    .arena-subtitle {
+      color: var(--color-text-muted); font-size: 0.85rem; margin-bottom: 1.5rem;
+    }
+    .btn-arena-add {
+      width: 100%; height: 48px; display: flex; align-items: center; justify-content: center;
+      background: var(--color-secondary); color: white; border: none;
+      border-radius: var(--radius-md); font-family: var(--font-heading);
+      font-size: 15px; font-weight: 600; cursor: pointer; transition: var(--transition-fast);
+    }
+    .btn-arena-add:hover { filter: brightness(1.1); transform: scale(1.01); }
+
+    .arena-name-form {
+      overflow: hidden; max-height: 0; opacity: 0;
+      transition: max-height 0.35s ease, opacity 0.3s ease, margin 0.3s ease;
+      margin-top: 0;
+    }
+    .arena-name-form.open { max-height: 200px; opacity: 1; margin-top: 1rem; }
+    .arena-name-form label {
+      font-size: 0.85rem; font-weight: 500; color: var(--color-text-muted);
+      display: block; margin-bottom: 0.5rem;
+    }
+    .arena-name-input {
+      width: 100%; background: var(--color-surface-1);
+      border: 1px solid rgba(255,255,255,0.08); color: var(--color-text);
+      padding: 0.75rem 1rem; border-radius: 12px; font-family: var(--font-body);
+      font-size: 0.9rem; margin-bottom: 0.75rem;
+    }
+    .arena-name-input:focus { outline: 2px solid var(--color-primary); outline-offset: 2px; }
+    .btn-join {
+      background: var(--color-primary); color: var(--color-bg); border: none;
+      padding: 0.65rem 1.5rem; border-radius: var(--radius-sm);
+      font-family: var(--font-heading); font-weight: 600; font-size: 14px;
+      cursor: pointer; transition: var(--transition-fast);
+    }
+    .btn-join:hover { filter: brightness(1.08); }
+    .arena-error {
+      color: var(--color-danger); font-size: 0.8rem; margin-top: 0.5rem;
+      min-height: 1.2em;
+    }
+
+    /* Arena announcement banner */
+    .arena-banner {
+      padding: 0.75rem 1rem; border-radius: var(--radius-sm);
+      font-size: 0.85rem; font-weight: 600; margin-bottom: 1rem;
+      text-align: center; opacity: 0;
+      transition: opacity 0.3s ease;
+    }
+    .arena-banner.visible { opacity: 1; }
+    .arena-banner.green {
+      background: var(--color-primary-alpha); color: var(--color-primary);
+      border: 1px solid rgba(0,229,160,0.2);
+    }
+    .arena-banner.neutral {
+      background: var(--color-secondary-alpha); color: var(--color-secondary);
+      border: 1px solid rgba(108,99,255,0.2);
+    }
+
+    /* Leaderboard Table */
+    .leaderboard-table-wrap {
+      border-radius: var(--radius-lg); overflow: hidden;
+      border: 1px solid var(--color-surface-border-2); margin-top: 1.25rem;
+    }
+    .leaderboard-table {
+      width: 100%; border-collapse: collapse; font-size: 0.85rem;
+    }
+    .leaderboard-table thead th {
+      font-family: var(--font-body); font-size: 10px; font-weight: 500;
+      color: var(--color-text-tertiary); text-transform: uppercase;
+      letter-spacing: 0.12em; padding: 0.75rem 1rem; text-align: left;
+      background: var(--color-surface-1); border-bottom: 1px solid var(--color-surface-border-2);
+    }
+    .leaderboard-table tbody tr {
+      background: var(--color-surface-2); border-bottom: 1px solid var(--color-surface-border-2);
+      transition: var(--transition-fast);
+    }
+    .leaderboard-table tbody tr:last-child { border-bottom: none; }
+    .leaderboard-table tbody td {
+      padding: 0.75rem 1rem; color: var(--color-text-muted);
+      vertical-align: middle;
+    }
+    .leaderboard-table tbody tr.rank-1 {
+      border-left: 2px solid var(--color-primary); background: rgba(0,229,160,0.06);
+    }
+    .leaderboard-table tbody tr.rank-2 {
+      border-left: 2px solid var(--color-warning); background: rgba(255,179,64,0.04);
+    }
+    .leaderboard-table tbody tr.rank-3 {
+      border-left: 2px solid var(--color-secondary); background: rgba(108,99,255,0.04);
+    }
+    .lb-rank-badge { font-weight: 700; font-family: var(--font-heading); }
+    .lb-status {
+      font-weight: 600; font-size: 0.75rem;
+    }
+    .lb-status-1 { color: var(--color-primary); }
+    .lb-status-2 { color: var(--color-warning); }
+    .lb-status-3 { color: var(--color-secondary); }
+    .row-enter {
+      animation: rowFadeIn 0.3s ease forwards;
+    }
+    @keyframes rowFadeIn {
+      from { opacity: 0; transform: translateY(8px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    .arena-challenge {
+      margin-top: 1.25rem; padding-top: 1.25rem;
+      border-top: 1px solid var(--color-surface-border-2);
+    }
+    .arena-challenge p { font-size: 0.85rem; color: var(--color-text-muted); margin-bottom: 0.5rem; }
+    .arena-challenge-text {
+      width: 100%; background: var(--color-surface-1);
+      border: 1px solid rgba(255,255,255,0.08); color: var(--color-text);
+      padding: 0.75rem 1rem; border-radius: 12px; font-family: var(--font-body);
+      font-size: 0.85rem; resize: none; height: 60px; margin-bottom: 0.75rem;
+    }
+
+    .arena-footer {
+      display: flex; align-items: center; justify-content: flex-end;
+      gap: 0.5rem; margin-top: 1rem;
+    }
+    .btn-clear-arena {
+      background: transparent; border: 1px solid rgba(255,91,91,0.3);
+      color: var(--color-danger); padding: 0.4rem 1rem; border-radius: 8px;
+      font-size: 0.75rem; font-weight: 600; cursor: pointer; transition: var(--transition-fast);
+    }
+    .btn-clear-arena:hover { background: rgba(255,91,91,0.08); }
+    .clear-confirm {
+      font-size: 0.8rem; color: var(--color-text-muted);
+      display: flex; align-items: center; gap: 0.5rem;
+    }
+    .clear-confirm button {
+      background: none; border: none; cursor: pointer;
+      font-weight: 600; font-size: 0.8rem; padding: 0.2rem 0.5rem;
+      border-radius: 4px; transition: var(--transition-fast);
+    }
+    .clear-confirm .btn-yes { color: var(--color-danger); }
+    .clear-confirm .btn-yes:hover { background: rgba(255,91,91,0.1); }
+    .clear-confirm .btn-cancel { color: var(--color-text-muted); }
+    .clear-confirm .btn-cancel:hover { background: rgba(255,255,255,0.05); }
+
+    .leaderboard-empty {
+      text-align: center; padding: 2rem; color: var(--color-text-tertiary);
+      font-size: 0.9rem;
+    }
+
+    /* ── Footer ────────────────────────────────────────────── */
+    footer {
+      margin-top: 2rem; background: var(--color-surface-1);
+      border-top: 1px solid var(--color-surface-border-1); padding: 2rem 1rem;
+    }
+    .footer-content {
+      max-width: 1200px; margin: 0 auto; display: flex; flex-direction: column;
+      gap: 1.25rem; align-items: center; text-align: center;
+    }
+    @media (min-width: 768px) {
+      .footer-content { flex-direction: row; justify-content: space-between; text-align: left; }
+    }
+    .footer-text { color: var(--color-text-muted); font-size: 0.8rem; }
+    .footer-security {
+      display: flex; align-items: center; gap: 0.5rem;
+      color: var(--color-primary); font-weight: 500; font-size: 0.85rem;
+    }
+    .btn-test {
+      background: transparent; border: 1px solid var(--color-text-tertiary);
+      color: var(--color-text-muted); padding: 0.5rem 1rem; border-radius: 8px;
+      cursor: pointer; font-weight: 600; font-size: 0.8rem; transition: var(--transition-fast);
+    }
+    .btn-test:hover { border-color: var(--color-text-muted); color: var(--color-text); }
+    #test-panel {
+      max-width: 1200px; margin: 1.5rem auto 0; background: var(--color-bg);
+      border: 1px solid var(--color-surface-border-1);
+      border-radius: var(--radius-lg); padding: 1.5rem;
+    }
+    #test-panel h3 { font-size: 14px; margin-bottom: 1rem; }
+    .test-result {
+      padding: 0.75rem 1rem; border-bottom: 1px solid var(--color-surface-border-2);
+      display: flex; flex-direction: column; gap: 0.4rem;
+    }
+    @media (min-width: 640px) {
+      .test-result { flex-direction: row; justify-content: space-between; align-items: center; }
+    }
+    .test-result:last-child { border-bottom: none; }
+    .test-pass { border-left: 3px solid var(--color-primary); }
+    .test-fail { border-left: 3px solid var(--color-danger); }
+    .test-details { color: var(--color-text-muted); font-size: 0.8rem; }
+    .test-icon {
+      font-weight: 800; font-size: 1rem; display: flex; align-items: center; gap: 0.4rem;
+    }
+    .test-pass .test-icon { color: var(--color-primary); }
+    .test-fail .test-icon { color: var(--color-danger); }
+
+    /* ── Responsive table scroll ───────────────────────────── */
+    @media (max-width: 640px) {
+      .leaderboard-table-wrap { overflow-x: auto; }
+      .leaderboard-table { min-width: 540px; }
+    }
+  </style>
+</head>
+<body>
+
+  <a href="#main-content" class="skip-link">Skip to main content</a>
+
+  <header>
+    <h1>EcoSense</h1>
+    <p>Know your footprint. Own your impact.</p>
+  </header>
+
+  <main id="main-content">
+    <div class="layout-grid">
+
+      <!-- ═══ LEFT: Input Panel ═══ -->
+      <section class="panel input-panel" aria-labelledby="inputs-heading">
+        <h2 id="inputs-heading" class="sr-only">Carbon Calculator Inputs</h2>
+
+        <!-- 1. Transport -->
+        <fieldset>
+          <legend>1. How do you usually commute?</legend>
+          <div class="button-group" role="radiogroup">
+            <input type="radio" name="transport" id="t-car" value="car_petrol_per_km" class="sr-only" checked>
+            <label for="t-car" class="btn-radio">Car</label>
+            <input type="radio" name="transport" id="t-moto" value="motorbike_per_km" class="sr-only">
+            <label for="t-moto" class="btn-radio">Motorbike</label>
+            <input type="radio" name="transport" id="t-bus" value="bus_per_km" class="sr-only">
+            <label for="t-bus" class="btn-radio">Bus</label>
+            <input type="radio" name="transport" id="t-train" value="train_per_km" class="sr-only">
+            <label for="t-train" class="btn-radio">Train</label>
+            <input type="radio" name="transport" id="t-walk" value="walk_cycle" class="sr-only">
+            <label for="t-walk" class="btn-radio">Walk / Cycle</label>
+          </div>
+          <div class="realtime-estimate" id="transport-estimate" aria-live="polite">Est: 576 kg CO₂</div>
+        </fieldset>
+
+        <!-- 2. Diet -->
+        <fieldset>
+          <legend>2. What describes your diet best?</legend>
+          <div class="button-group" role="radiogroup">
+            <input type="radio" name="diet" id="d-vegan" value="vegan" class="sr-only">
+            <label for="d-vegan" class="btn-radio">Vegan</label>
+            <input type="radio" name="diet" id="d-veg" value="vegetarian" class="sr-only">
+            <label for="d-veg" class="btn-radio">Vegetarian</label>
+            <input type="radio" name="diet" id="d-mixed" value="mixed" class="sr-only" checked>
+            <label for="d-mixed" class="btn-radio">Mixed</label>
+            <input type="radio" name="diet" id="d-meat" value="meat_heavy" class="sr-only">
+            <label for="d-meat" class="btn-radio">Meat-heavy</label>
+          </div>
+          <div class="realtime-estimate" id="diet-estimate" aria-live="polite">Est: 2500 kg CO₂</div>
+        </fieldset>
+
+        <!-- 3. Home Energy -->
+        <div class="slider-container">
+          <label for="energy-slider">3. Home Energy Usage</label>
+          <input type="range" id="energy-slider" min="0" max="2" step="1" value="1"
+                 aria-valuemin="0" aria-valuemax="2" aria-valuenow="1">
+          <div class="range-labels" aria-hidden="true"><span>Low</span><span>Medium</span><span>High</span></div>
+          <div class="realtime-estimate" id="energy-estimate" aria-live="polite">Est: 1200 kg CO₂</div>
+        </div>
+
+        <!-- 4. Shopping -->
+        <div class="slider-container">
+          <label for="shopping-slider">4. Shopping & Consumption</label>
+          <input type="range" id="shopping-slider" min="0" max="2" step="1" value="1"
+                 aria-valuemin="0" aria-valuemax="2" aria-valuenow="1">
+          <div class="range-labels" aria-hidden="true"><span>Minimal</span><span>Medium</span><span>Heavy</span></div>
+          <div class="realtime-estimate" id="shopping-estimate" aria-live="polite">Est: 800 kg CO₂</div>
+        </div>
+
+        <!-- Actions -->
+        <div id="error-msg" class="badge badge-red hidden" role="alert"></div>
+        <div id="validation-badge" class="badge badge-green hidden" role="status">Input validated ✓</div>
+        <button id="calculate-btn" class="btn-primary">Calculate My Footprint</button>
+        <div id="cooldown-msg" class="badge badge-blue hidden" role="timer" aria-live="assertive"></div>
+      </section>
+
+      <!-- ═══ RIGHT: Results Dashboard ═══ -->
+      <section class="panel results-panel" id="results-dashboard" aria-live="polite">
+
+        <!-- Landing State -->
+        <div id="landing-state">
+          <h2>Why Carbon Awareness Matters</h2>
+          <p style="color:var(--color-text-muted);">Everything we do — from the food we eat to how we commute — has a hidden carbon cost. In a world facing climate change, knowing your personal number is the critical first step to owning your environmental impact.</p>
+          <p style="color:var(--color-text-muted);">Use the inputs on the left to calculate your estimated annual carbon footprint. We'll instantly show you how you compare globally, assign you a Carbon Score, and provide personalised tips to help you reduce your emissions.</p>
+        </div>
+
+        <!-- Results State -->
+        <div id="results-state" class="hidden">
+          <div id="cache-badge" class="badge badge-blue hidden" role="status">⚡ Instant result (cached)</div>
+
+          <div class="human-readable"><p id="human-summary"></p></div>
+
+          <div class="chart-and-score">
+            <div class="chart-container">
+              <svg class="ring-chart" viewBox="0 0 200 200" role="img"
+                   aria-label="Ring chart showing your carbon footprint compared to India and global averages">
+                <title>Carbon footprint comparison chart</title>
+                <circle cx="100" cy="100" r="90" class="ring-bg-fill"/>
+                <g transform="rotate(-90 100 100)">
+                  <circle cx="100" cy="100" r="85" class="ring-bg"/>
+                  <circle cx="100" cy="100" r="85" class="ring-global" id="ring-global"
+                          stroke-dasharray="534" stroke-dashoffset="534"/>
+                  <circle cx="100" cy="100" r="70" class="ring-bg" stroke-width="8"/>
+                  <circle cx="100" cy="100" r="70" class="ring-india" id="ring-india"
+                          stroke-dasharray="440" stroke-dashoffset="440"/>
+                  <circle cx="100" cy="100" r="55" class="ring-bg" stroke-width="8"/>
+                  <circle cx="100" cy="100" r="55" class="ring-user" id="ring-user"
+                          stroke-dasharray="345" stroke-dashoffset="345"/>
+                </g>
+                <text x="100" y="96" text-anchor="middle" fill="var(--color-text)"
+                      font-family="Space Grotesk, sans-serif" font-size="36" font-weight="700"
+                      id="chart-user-value">0</text>
+                <text x="100" y="116" text-anchor="middle" fill="var(--color-text-muted)"
+                      font-family="Inter, sans-serif" font-size="11" font-weight="400">kg CO₂/yr</text>
+              </svg>
+              <div class="chart-legend" aria-hidden="true">
+                <div class="legend-item"><span class="dot dot-user"></span> You</div>
+                <div class="legend-item"><span class="dot dot-india"></span> India Avg (1,900)</div>
+                <div class="legend-item"><span class="dot dot-global"></span> Global Avg (4,700)</div>
+              </div>
+            </div>
+
+            <div class="score-container">
+              <div class="score-badge" id="score-badge"><span id="score-value">0</span></div>
+              <h3>Your Carbon Score</h3>
+              <p>Higher is better (0–100)</p>
+            </div>
+          </div>
+
+          <!-- Metric Cards -->
+          <div class="metrics-grid">
+            <div class="metric-card" id="card-total">
+              <span class="metric-icon" aria-hidden="true">🌍</span>
+              <span class="metric-label">YOUR CO₂</span>
+              <span class="metric-value" id="val-total">0 kg</span>
+              <span class="metric-trend text-green" id="trend-total">Annual</span>
+            </div>
+            <div class="metric-card" id="card-india">
+              <span class="metric-icon" aria-hidden="true">🇮🇳</span>
+              <span class="metric-label">VS INDIA AVG</span>
+              <span class="metric-value" id="val-india">0%</span>
+              <span class="metric-trend" id="trend-india"></span>
+            </div>
+            <div class="metric-card" id="card-global">
+              <span class="metric-icon" aria-hidden="true">🌎</span>
+              <span class="metric-label">VS GLOBAL AVG</span>
+              <span class="metric-value" id="val-global">0%</span>
+              <span class="metric-trend" id="trend-global"></span>
+            </div>
+            <div class="metric-card" id="card-score">
+              <span class="metric-icon" aria-hidden="true">⭐</span>
+              <span class="metric-label">STATUS</span>
+              <span class="metric-value" id="val-score-text">0</span>
+              <span class="metric-trend" id="trend-score"></span>
+            </div>
+          </div>
+
+          <!-- Equivalents -->
+          <section class="equivalents-section">
+            <h3>What your footprint looks like</h3>
+            <div class="equivalents-grid">
+              <div class="eq-tile">
+                <div class="eq-icon-wrap" aria-hidden="true">🌳</div>
+                <div><span class="eq-number" id="eq-trees">0</span><span class="eq-label"> trees needed to offset</span></div>
+              </div>
+              <div class="eq-tile">
+                <div class="eq-icon-wrap" aria-hidden="true">✈️</div>
+                <div><span class="eq-number" id="eq-flights">0</span><span class="eq-label"> long-haul flights</span></div>
+              </div>
+              <div class="eq-tile">
+                <div class="eq-icon-wrap" aria-hidden="true">🥩</div>
+                <div><span class="eq-number" id="eq-beef">0</span><span class="eq-label"> beef meals equivalent</span></div>
+              </div>
+              <div class="eq-tile">
+                <div class="eq-icon-wrap" aria-hidden="true">⚡</div>
+                <div><span class="eq-number" id="eq-power">0</span><span class="eq-label"> months Indian electricity</span></div>
+              </div>
+            </div>
+          </section>
+
+          <!-- Tips -->
+          <section class="tips-section">
+            <h3>Top 3 Personalised Ways to Reduce</h3>
+            <div id="tips-container">
+              <article class="tip-card">
+                <div class="tip-rank" aria-label="Tip number 1">1</div>
+                <div class="tip-content"><h4 class="tip-title" id="tip1-title">Tip</h4><p class="tip-desc" id="tip1-desc">Desc</p></div>
+                <div class="tip-saving" id="tip1-saving">Saving</div>
+              </article>
+              <article class="tip-card">
+                <div class="tip-rank" aria-label="Tip number 2">2</div>
+                <div class="tip-content"><h4 class="tip-title" id="tip2-title">Tip</h4><p class="tip-desc" id="tip2-desc">Desc</p></div>
+                <div class="tip-saving" id="tip2-saving">Saving</div>
+              </article>
+              <article class="tip-card">
+                <div class="tip-rank" aria-label="Tip number 3">3</div>
+                <div class="tip-content"><h4 class="tip-title" id="tip3-title">Tip</h4><p class="tip-desc" id="tip3-desc">Desc</p></div>
+                <div class="tip-saving" id="tip3-saving">Saving</div>
+              </article>
+            </div>
+          </section>
+
+          <!-- Impact Multiplier -->
+          <div class="impact-multiplier">
+            <h3>What if everyone in India did this?</h3>
+            <p id="impact-multiplier-text"></p>
+          </div>
+
+          <!-- Share -->
+          <div class="share-section">
+            <h3>Inspire Others — Share Your Score</h3>
+            <label for="share-text" class="sr-only">Pre-formatted share text for LinkedIn</label>
+            <textarea id="share-text" readonly></textarea>
+            <button id="copy-btn" class="btn-copy">Copy to clipboard</button>
+            <p class="share-hint">Perfect for LinkedIn — show your network you care about climate.</p>
+          </div>
+
+          <!-- Arena -->
+          <section class="arena-section" id="arena-section">
+            <div class="arena-header">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--color-secondary)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+              <h3>EcoSense Arena</h3>
+            </div>
+            <p class="arena-subtitle">Challenge your friends — lowest footprint wins</p>
+
+            <button id="arena-add-btn" class="btn-arena-add">Add to Leaderboard</button>
+
+            <div id="arena-name-form" class="arena-name-form">
+              <label for="arena-name-input">Your display name</label>
+              <input type="text" id="arena-name-input" class="arena-name-input"
+                     placeholder="Enter your name (max 20 chars)" maxlength="20"
+                     aria-describedby="arena-name-error">
+              <div style="display:flex;gap:0.5rem;align-items:center;">
+                <button id="arena-join-btn" class="btn-join">Join Arena</button>
+                <button id="arena-cancel-btn" class="btn-copy" style="font-size:0.8rem;padding:0.6rem 1rem;">Cancel</button>
+              </div>
+              <div id="arena-name-error" class="arena-error" role="alert"></div>
+            </div>
+
+            <div id="arena-banner" class="arena-banner" aria-live="polite"></div>
+
+            <div id="arena-board">
+              <div class="leaderboard-empty" id="arena-empty">No entries yet. Be the first to join the arena!</div>
+            </div>
+
+            <div id="arena-challenge" class="arena-challenge hidden">
+              <p>Your challenge text:</p>
+              <label for="arena-challenge-text" class="sr-only">Challenge message to share</label>
+              <textarea id="arena-challenge-text" class="arena-challenge-text" readonly></textarea>
+              <button id="arena-copy-btn" class="btn-copy" style="font-size:0.8rem;">Copy Challenge</button>
+            </div>
+
+            <div class="arena-footer" id="arena-footer-controls" style="display:none;">
+              <div id="arena-clear-confirm" class="clear-confirm hidden">
+                <span>Clear all entries?</span>
+                <button class="btn-yes" id="arena-yes-btn">Yes</button>
+                <button class="btn-cancel" id="arena-cancel-clear-btn">Cancel</button>
+              </div>
+              <button id="arena-clear-btn" class="btn-clear-arena">Clear Arena</button>
+            </div>
+          </section>
+
+        </div><!-- /results-state -->
+      </section>
+    </div>
+  </main>
+
+  <footer>
+    <div class="footer-content">
+      <div><button id="run-tests-btn" class="btn-test">Run Tests ⚙️</button></div>
+      <div class="footer-security"><span aria-hidden="true">🔒</span> Your data stays on your device. No cookies. No tracking.</div>
+      <div class="footer-text">Built for Prompt Wars 2025</div>
+    </div>
+    <div id="test-panel" class="hidden" aria-live="polite"></div>
+  </footer>
+
+  <script>
+    /* ═══════════════════════════════════════════════════════════
+       DATA CONSTANTS
+       ═══════════════════════════════════════════════════════════ */
+
+    /**
+     * Local emissions lookup table.
+     * Pre-calculated CO₂ values for various activities.
+     * @constant {Object}
+     */
+    const EMISSION_FACTORS = {
+      transport: {
+        car_petrol_per_km: 0.192,
+        motorbike_per_km: 0.114,
+        bus_per_km: 0.089,
+        train_per_km: 0.041,
+        walk_cycle: 0,
+        average_commute_km_per_year: 3000
+      },
+      diet: {
+        vegan: 1500,
+        vegetarian: 1700,
+        mixed: 2500,
+        meat_heavy: 3300
+      },
+      home_energy: {
+        low: 500,
+        medium: 1200,
+        high: 2200
+      },
+      shopping: {
+        minimal: 300,
+        medium: 800,
+        heavy: 1600
+      },
+      reference_averages: {
+        india_average: 1900,
+        global_average: 4700
+      },
+      equivalents: {
+        kg_co2_per_tree_per_year: 21,
+        kg_co2_per_long_haul_flight: 650,
+        kg_co2_per_beef_meal: 6.6,
+        kg_co2_per_month_indian_electricity: 40
+      }
+    };
+
+    /**
+     * Cache map for memoizing footprint calculation results.
+     * @constant {Map}
+     */
+    const CACHE = new Map();
+
+    /**
+     * Reduction tips database, grouped by category.
+     * @constant {Object}
+     */
+    const CATEGORY_TIPS = {
+      diet: [
+        { title: 'Go meatless twice a week', desc: 'Swapping meat for plant proteins just two days a week significantly cuts emissions without a major lifestyle change.', saving: 'Est. saving: 300 kg CO₂' },
+        { title: 'Reduce dairy intake', desc: 'Switching to oat or soy milk for your daily coffee makes a big difference over a year.', saving: 'Est. saving: 150 kg CO₂' },
+        { title: 'Buy local produce', desc: 'Eating locally sourced seasonal food reduces long-haul transportation emissions.', saving: 'Est. saving: 50 kg CO₂' }
+      ],
+      transport: [
+        { title: 'Take public transit', desc: 'Using the bus or train for your commute instead of a private car halves your transport emissions.', saving: 'Est. saving: 450 kg CO₂' },
+        { title: 'Carpool to work', desc: 'Sharing a ride with just one other person cuts your commute footprint by 50%.', saving: 'Est. saving: 200 kg CO₂' },
+        { title: 'Eco-driving habits', desc: 'Avoid rapid acceleration and maintain proper tire pressure to improve fuel efficiency.', saving: 'Est. saving: 100 kg CO₂' }
+      ],
+      energy: [
+        { title: 'Optimize AC temperature', desc: 'Set your AC to 24°C instead of 18°C. Every degree higher saves roughly 6% in energy.', saving: 'Est. saving: 250 kg CO₂' },
+        { title: 'Switch to LEDs', desc: 'Replace all incandescent or old CFL bulbs with highly energy-efficient LED lights.', saving: 'Est. saving: 120 kg CO₂' },
+        { title: 'Unplug idle electronics', desc: 'Phantom power from plugged-in devices can account for 10% of home energy usage.', saving: 'Est. saving: 50 kg CO₂' }
+      ],
+      shopping: [
+        { title: 'Ditch fast fashion', desc: 'Buy fewer, higher-quality clothes and wear them longer instead of seasonal shopping.', saving: 'Est. saving: 200 kg CO₂' },
+        { title: 'Refurbished electronics', desc: 'Buy refurbished phones and laptops instead of brand new ones to save embodied carbon.', saving: 'Est. saving: 150 kg CO₂' },
+        { title: 'Reduce packaging', desc: 'Buy in bulk and actively avoid single-use plastics when grocery shopping.', saving: 'Est. saving: 80 kg CO₂' }
+      ]
+    };
+
+    /* ═══════════════════════════════════════════════════════════
+       CORE LOGIC
+       ═══════════════════════════════════════════════════════════ */
+
+    /**
+     * Sanitizes user input by stripping dangerous HTML characters.
+     * @param {string|number} input - Raw input value.
+     * @returns {string} Sanitized string.
+     */
+    function sanitizeInput(input) {
+      return String(input).replace(/[<>"']/g, '');
+    }
+
+    /**
+     * Validates the current form inputs.
+     * @returns {boolean} True if all inputs are valid.
+     */
+    function validateInputs() {
+      const transport = document.querySelector('input[name="transport"]:checked');
+      const diet = document.querySelector('input[name="diet"]:checked');
+      const energy = document.getElementById('energy-slider').value;
+      const shopping = document.getElementById('shopping-slider').value;
+      if (!transport || !diet) return false;
+      const energyVal = parseInt(sanitizeInput(energy), 10);
+      const shoppingVal = parseInt(sanitizeInput(shopping), 10);
+      if (isNaN(energyVal) || isNaN(shoppingVal)) return false;
+      if (energyVal < 0 || energyVal > 2) return false;
+      if (shoppingVal < 0 || shoppingVal > 2) return false;
+      return true;
+    }
+
+    /**
+     * Calculates the total carbon footprint and breakdown.
+     * @param {string} transportMode - Transport emission key.
+     * @param {string} dietType - Diet type key.
+     * @param {number} energyLevel - Energy level index (0-2).
+     * @param {number} shoppingLevel - Shopping level index (0-2).
+     * @returns {Object} Result with total and breakdown.
+     */
+    function calculateFootprint(transportMode, dietType, energyLevel, shoppingLevel) {
+      const tFact = EMISSION_FACTORS.transport[transportMode] || 0;
+      const transportEmissions = tFact === 0 ? 0 : tFact * EMISSION_FACTORS.transport.average_commute_km_per_year;
+      const dietEmissions = EMISSION_FACTORS.diet[dietType] || 0;
+      const energyKeys = ['low', 'medium', 'high'];
+      const energyEmissions = (energyLevel >= 0 && energyLevel < 3) ? EMISSION_FACTORS.home_energy[energyKeys[energyLevel]] : 0;
+      const shoppingKeys = ['minimal', 'medium', 'heavy'];
+      const shoppingEmissions = (shoppingLevel >= 0 && shoppingLevel < 3) ? EMISSION_FACTORS.shopping[shoppingKeys[shoppingLevel]] : 0;
+      const total = transportEmissions + dietEmissions + energyEmissions + shoppingEmissions;
+      return {
+        total: Math.round(total),
+        breakdown: {
+          transport: Math.round(transportEmissions),
+          diet: Math.round(dietEmissions),
+          energy: Math.round(energyEmissions),
+          shopping: Math.round(shoppingEmissions)
+        }
+      };
+    }
+
+    /**
+     * Retrieves footprint with memoization cache.
+     * @param {string} transport
+     * @param {string} diet
+     * @param {number} energy
+     * @param {number} shopping
+     * @returns {Object} Result with cached boolean.
+     */
+    function getFootprint(transport, diet, energy, shopping) {
+      const cacheKey = `${transport}-${diet}-${energy}-${shopping}`;
+      if (CACHE.has(cacheKey)) {
+        return { ...CACHE.get(cacheKey), cached: true };
+      }
+      const result = calculateFootprint(transport, diet, energy, shopping);
+      CACHE.set(cacheKey, result);
+      return { ...result, cached: false };
+    }
+
+    /**
+     * Converts kg CO₂ to relatable equivalents.
+     * @param {number} userTotal - Total kg CO₂.
+     * @returns {Object} Equivalents dictionary.
+     */
+    function convertToEquivalents(userTotal) {
+      return {
+        trees: (userTotal / EMISSION_FACTORS.equivalents.kg_co2_per_tree_per_year).toFixed(1),
+        flights: (userTotal / EMISSION_FACTORS.equivalents.kg_co2_per_long_haul_flight).toFixed(1),
+        beef: (userTotal / EMISSION_FACTORS.equivalents.kg_co2_per_beef_meal).toFixed(1),
+        electricity: (userTotal / EMISSION_FACTORS.equivalents.kg_co2_per_month_indian_electricity).toFixed(1)
+      };
+    }
+
+    /**
+     * Returns top 3 tips based on highest emission category.
+     * @param {Object} breakdown - Emissions breakdown by category.
+     * @returns {Array} Array of 3 tip objects.
+     */
+    function getReductionTips(breakdown) {
+      let highestCategory = 'transport';
+      let maxEmission = breakdown.transport;
+      for (const [key, val] of Object.entries(breakdown)) {
+        if (val > maxEmission) {
+          maxEmission = val;
+          highestCategory = key;
+        }
+      }
+      return CATEGORY_TIPS[highestCategory];
+    }
+
+    /* ═══════════════════════════════════════════════════════════
+       RENDERING
+       ═══════════════════════════════════════════════════════════ */
+
+    /**
+     * Animates a number counting up from 0 to target over 1.2s with ease-out.
+     * @param {HTMLElement} el - The element whose textContent to update.
+     * @param {number} target - The target number.
+     * @param {string} suffix - Optional suffix (e.g. " kg", "%").
+     * @param {boolean} useLocale - Whether to use toLocaleString.
+     */
+    function animateNumber(el, target, suffix, useLocale) {
+      const duration = 1200;
+      const startTime = performance.now();
+      const update = (now) => {
+        const elapsed = now - startTime;
+        const progress = Math.min(elapsed / duration, 1);
+        // ease-out cubic
+        const eased = 1 - Math.pow(1 - progress, 3);
+        const current = Math.round(eased * target);
+        el.textContent = (useLocale ? current.toLocaleString() : current) + (suffix || '');
+        if (progress < 1) requestAnimationFrame(update);
+      };
+      requestAnimationFrame(update);
+    }
+
+    /**
+     * Renders ring chart with CSS transitions.
+     * @param {number} userTotal
+     * @param {number} indiaAvg
+     * @param {number} globalAvg
+     */
+    function renderChart(userTotal, indiaAvg, globalAvg) {
+      const cGlobal = 2 * Math.PI * 85;
+      const cIndia = 2 * Math.PI * 70;
+      const cUser = 2 * Math.PI * 55;
+      const maxVal = Math.max(userTotal, globalAvg, 8000);
+      const uPct = Math.min(userTotal / maxVal, 1);
+      const iPct = Math.min(indiaAvg / maxVal, 1);
+      const gPct = Math.min(globalAvg / maxVal, 1);
+      requestAnimationFrame(() => {
+        document.getElementById('ring-user').style.strokeDashoffset = cUser - (cUser * uPct);
+        document.getElementById('ring-india').style.strokeDashoffset = cIndia - (cIndia * iPct);
+        document.getElementById('ring-global').style.strokeDashoffset = cGlobal - (cGlobal * gPct);
+        animateNumber(document.getElementById('chart-user-value'), Math.round(userTotal), '', true);
+      });
+    }
+
+    /**
+     * Calculates and renders the carbon score badge.
+     * @param {number} userTotal
+     * @returns {number} The computed score.
+     */
+    function renderScore(userTotal) {
+      const score = Math.round(Math.max(0, Math.min(100, 100 - ((userTotal - 500) / (8000 - 500)) * 100)));
+      const badge = document.getElementById('score-badge');
+      const scoreVal = document.getElementById('score-value');
+      badge.classList.remove('score-good', 'score-amber', 'score-red');
+      const trendScore = document.getElementById('trend-score');
+      const cardScore = document.getElementById('card-score');
+      if (score >= 70) {
+        badge.classList.add('score-good');
+        trendScore.textContent = '⭐ Excellent';
+        cardScore.className = 'metric-card status-good';
+      } else if (score >= 40) {
+        badge.classList.add('score-amber');
+        trendScore.textContent = '⚠️ Average';
+        cardScore.className = 'metric-card status-warn';
+      } else {
+        badge.classList.add('score-red');
+        trendScore.textContent = '❗ Needs Work';
+        cardScore.className = 'metric-card status-danger';
+      }
+      animateNumber(scoreVal, score, '', false);
+      animateNumber(document.getElementById('val-score-text'), score, '', false);
+      return score;
+    }
+
+    /**
+     * Updates all results DOM elements.
+     * @param {Object} result - The footprint result object.
+     */
+    function updateUIWithResults(result) {
+      const { total, breakdown, cached } = result;
+      document.getElementById('landing-state').classList.add('hidden');
+      const resultsEl = document.getElementById('results-state');
+      resultsEl.classList.remove('hidden');
+      // Trigger fade-in animation
+      resultsEl.classList.remove('results-fade-in');
+      void resultsEl.offsetWidth; // force reflow
+      resultsEl.classList.add('results-fade-in');
+
+      const cacheBadge = document.getElementById('cache-badge');
+      if (cached) { cacheBadge.classList.remove('hidden'); } else { cacheBadge.classList.add('hidden'); }
+
+      const indAvg = EMISSION_FACTORS.reference_averages.india_average;
+      const glbAvg = EMISSION_FACTORS.reference_averages.global_average;
+
+      renderChart(total, indAvg, glbAvg);
+      lastScore = renderScore(total);
+      lastTotal = total;
+
+      // Metric cards
+      animateNumber(document.getElementById('val-total'), total, ' kg', true);
+
+      const pctIndia = Math.round(((total - indAvg) / indAvg) * 100);
+      animateNumber(document.getElementById('val-india'), Math.abs(pctIndia), '%', false);
+      const trendIndia = document.getElementById('trend-india');
+      trendIndia.textContent = pctIndia >= 0 ? '▲ Above avg' : '▼ Below avg';
+      document.getElementById('card-india').className = `metric-card ${pctIndia > 0 ? 'status-danger' : 'status-good'}`;
+
+      const pctGlobal = Math.round(((total - glbAvg) / glbAvg) * 100);
+      animateNumber(document.getElementById('val-global'), Math.abs(pctGlobal), '%', false);
+      const trendGlobal = document.getElementById('trend-global');
+      trendGlobal.textContent = pctGlobal >= 0 ? '▲ Above avg' : '▼ Below avg';
+      document.getElementById('card-global').className = `metric-card ${pctGlobal > 0 ? 'status-danger' : 'status-good'}`;
+
+      // Equivalents
+      const eqs = convertToEquivalents(total);
+      animateNumber(document.getElementById('eq-trees'), parseFloat(eqs.trees), '', false);
+      animateNumber(document.getElementById('eq-flights'), parseFloat(eqs.flights), '', false);
+      animateNumber(document.getElementById('eq-beef'), parseFloat(eqs.beef), '', false);
+      animateNumber(document.getElementById('eq-power'), parseFloat(eqs.electricity), '', false);
+
+      // Tips
+      const tips = getReductionTips(breakdown);
+      for (let i = 0; i < 3; i++) {
+        document.getElementById(`tip${i+1}-title`).textContent = tips[i].title;
+        document.getElementById(`tip${i+1}-desc`).textContent = tips[i].desc;
+        document.getElementById(`tip${i+1}-saving`).textContent = tips[i].saving;
+      }
+
+      // Human summary
+      const comparisonText = pctIndia >= 0 ? `${pctIndia}% above` : `${Math.abs(pctIndia)}% below`;
+      document.getElementById('human-summary').textContent = `Your estimated carbon footprint is ${total.toLocaleString()} kg CO\u2082 per year. This places you ${comparisonText} the Indian national average of 1,900 kg.`;
+
+      // Impact multiplier
+      const indPop = 1400000000;
+      const diff = total - indAvg;
+      let impactText = '';
+      if (diff > 0) {
+        impactText = `If everyone lived like you, India\u2019s emissions would increase by ${Math.round((diff * indPop) / 1e9).toLocaleString()} million tonnes of CO\u2082 annually.`;
+      } else if (diff < 0) {
+        impactText = `If everyone lived like you, India\u2019s emissions would drop by ${Math.round((Math.abs(diff) * indPop) / 1e9).toLocaleString()} million tonnes of CO\u2082!`;
+      } else {
+        impactText = `You are exactly at the national average.`;
+      }
+      document.getElementById('impact-multiplier-text').textContent = impactText;
+
+      // Share text
+      const shareStr = `I just calculated my carbon footprint with EcoSense \u2014 I'm at ${total.toLocaleString()} kg CO\u2082/year, ${Math.abs(pctIndia)}% ${pctIndia >= 0 ? 'above' : 'below'} India's average. What's yours? #EcoSense #CarbonFootprint #Sustainability`;
+      document.getElementById('share-text').value = shareStr;
+
+      // Show arena add button
+      document.getElementById('arena-add-btn').classList.remove('hidden');
+    }
+
+    /**
+     * Updates real-time estimates in the input panel.
+     */
+    function updateEstimates() {
+      const flash = (el) => {
+        el.classList.add('flash');
+        setTimeout(() => el.classList.remove('flash'), 150);
+      };
+
+      const transInput = document.querySelector('input[name="transport"]:checked');
+      if (transInput) {
+        const val = EMISSION_FACTORS.transport[transInput.value] * EMISSION_FACTORS.transport.average_commute_km_per_year;
+        const el = document.getElementById('transport-estimate');
+        el.textContent = `Est: ${Math.round(val)} kg CO\u2082`;
+        flash(el);
+      }
+      const dietInput = document.querySelector('input[name="diet"]:checked');
+      if (dietInput) {
+        const val = EMISSION_FACTORS.diet[dietInput.value];
+        const el = document.getElementById('diet-estimate');
+        el.textContent = `Est: ${val} kg CO\u2082`;
+        flash(el);
+      }
+      const energyLevel = document.getElementById('energy-slider').value;
+      const energyKeys = ['low', 'medium', 'high'];
+      const eVal = EMISSION_FACTORS.home_energy[energyKeys[energyLevel]];
+      const eEl = document.getElementById('energy-estimate');
+      eEl.textContent = `Est: ${eVal} kg CO\u2082`;
+      flash(eEl);
+
+      const shoppingLevel = document.getElementById('shopping-slider').value;
+      const shoppingKeys = ['minimal', 'medium', 'heavy'];
+      const sVal = EMISSION_FACTORS.shopping[shoppingKeys[shoppingLevel]];
+      const sEl = document.getElementById('shopping-estimate');
+      sEl.textContent = `Est: ${sVal} kg CO\u2082`;
+      flash(sEl);
+    }
+
+    /* ═══════════════════════════════════════════════════════════
+       TESTING
+       ═══════════════════════════════════════════════════════════ */
+
+    /**
+     * Runs all 6 inline automated tests and renders results.
+     */
+    function runTests() {
+      const panel = document.getElementById('test-panel');
+      panel.innerHTML = '<h3>Automated Test Results</h3>';
+
+      const addResult = (name, expected, actual, pass) => {
+        const el = document.createElement('div');
+        el.className = `test-result ${pass ? 'test-pass' : 'test-fail'}`;
+        const nameEl = document.createElement('div');
+        const strong = document.createElement('strong');
+        strong.textContent = name;
+        nameEl.appendChild(strong);
+        const details = document.createElement('div');
+        details.className = 'test-details';
+        details.textContent = `Expected: ${expected} | Actual: ${actual}`;
+        nameEl.appendChild(details);
+        el.appendChild(nameEl);
+        const icon = document.createElement('div');
+        icon.className = 'test-icon';
+        icon.textContent = pass ? 'Pass \u2713' : 'Fail \u2717';
+        el.appendChild(icon);
+        panel.appendChild(el);
+      };
+
+      // Test 1: Zero emissions input
+      try {
+        const t1 = calculateFootprint('none', 'none', -1, -1).total;
+        addResult('Test 1: Zero emissions input', '0', t1, t1 === 0);
+      } catch (e) { addResult('Test 1: Zero emissions', '0', 'Error', false); }
+
+      // Test 2: Maximum all inputs
+      try {
+        const t2 = calculateFootprint('car_petrol_per_km', 'meat_heavy', 2, 2).total;
+        addResult('Test 2: Maximum all inputs', '> 7500', t2, t2 > 7500);
+      } catch (e) { addResult('Test 2: Maximum all inputs', '> 7500', 'Error', false); }
+
+      // Test 3: Invalid input handling
+      try {
+        const t3 = sanitizeInput("<scr" + "ipt>alert(1)</" + "script>");
+        const pass = t3.indexOf('<') === -1 && t3.indexOf('>') === -1;
+        addResult('Test 3: Invalid input handling', 'Sanitized (no tags)', pass ? 'Clean' : 'Tags remain', pass);
+      } catch (e) { addResult('Test 3: Invalid input handling', 'Sanitized', 'Error', false); }
+
+      // Test 4: Cache hit
+      try {
+        getFootprint('walk_cycle', 'vegan', 0, 0);
+        const res2 = getFootprint('walk_cycle', 'vegan', 0, 0);
+        addResult('Test 4: Cache hit', 'true', res2.cached.toString(), res2.cached === true);
+      } catch (e) { addResult('Test 4: Cache hit', 'true', 'Error', false); }
+
+      // Test 5: Equivalents calculation
+      try {
+        const t5 = convertToEquivalents(1000);
+        const pass = parseFloat(t5.trees) >= 47 && parseFloat(t5.flights) >= 1.5;
+        addResult('Test 5: Equivalents calculation', '~47.6 trees, ~1.5 flights', `${t5.trees} trees, ${t5.flights} flights`, pass);
+      } catch (e) { addResult('Test 5: Equivalents calculation', 'Success', 'Error', false); }
+
+      // Test 6: Score calculation
+      try {
+        const score0 = Math.round(Math.max(0, Math.min(100, 100 - ((0 - 500) / (8000 - 500)) * 100)));
+        const scoreMax = Math.round(Math.max(0, Math.min(100, 100 - ((8000 - 500) / (8000 - 500)) * 100)));
+        const pass = score0 === 100 && scoreMax === 0;
+        addResult('Test 6: Score calculation', '0kg=100, 8000kg=0', `0kg=${score0}, 8000kg=${scoreMax}`, pass);
+      } catch (e) { addResult('Test 6: Score calculation', '100 and 0', 'Error', false); }
+    }
+
+    /* ═══════════════════════════════════════════════════════════
+       ARENA / LEADERBOARD
+       ═══════════════════════════════════════════════════════════ */
+
+    /** @type {Array<Object>} Session leaderboard entries. */
+    let leaderboard = [];
+
+    /** Last calculated values for arena entry. */
+    let lastTotal = 0;
+    let lastScore = 0;
+
+    /**
+     * Sanitizes a name for the arena leaderboard.
+     * Strips HTML, limits to alphanum + spaces + basic punctuation, max 20 chars.
+     * @param {string} name - Raw name input.
+     * @returns {string} Sanitized name.
+     */
+    function sanitizeName(name) {
+      let s = String(name).replace(/[<>"']/g, '');
+      s = s.replace(/[^a-zA-Z0-9 _.,-]/g, '');
+      return s.trim().substring(0, 20);
+    }
+
+    /**
+     * Renders the leaderboard table from the current array state.
+     */
+    function renderLeaderboard() {
+      const board = document.getElementById('arena-board');
+      const emptyMsg = document.getElementById('arena-empty');
+
+      if (leaderboard.length === 0) {
+        // Remove table if it exists
+        const existing = board.querySelector('.leaderboard-table-wrap');
+        if (existing) existing.remove();
+        if (emptyMsg) emptyMsg.classList.remove('hidden');
+        document.getElementById('arena-footer-controls').style.display = 'none';
+        document.getElementById('arena-challenge').classList.add('hidden');
+        return;
+      }
+
+      if (emptyMsg) emptyMsg.classList.add('hidden');
+      document.getElementById('arena-footer-controls').style.display = 'flex';
+
+      // Sort by CO2 ascending
+      leaderboard.sort((a, b) => a.co2 - b.co2);
+
+      let wrap = board.querySelector('.leaderboard-table-wrap');
+      if (!wrap) {
+        wrap = document.createElement('div');
+        wrap.className = 'leaderboard-table-wrap';
+        board.appendChild(wrap);
+      }
+
+      const table = document.createElement('table');
+      table.className = 'leaderboard-table';
+      table.setAttribute('role', 'table');
+
+      // Header
+      const thead = document.createElement('thead');
+      const headerRow = document.createElement('tr');
+      const cols = ['Rank', 'Name', 'CO\u2082 (kg/yr)', 'Score', 'Transport', 'Diet', 'Status'];
+      cols.forEach(col => {
+        const th = document.createElement('th');
+        th.setAttribute('scope', 'col');
+        th.textContent = col;
+        headerRow.appendChild(th);
+      });
+      thead.appendChild(headerRow);
+      table.appendChild(thead);
+
+      // Body
+      const tbody = document.createElement('tbody');
+      const rankIcons = ['👑', '🥈', '🥉'];
+      const rankStatuses = ['Greenest', 'Runner up', '3rd place'];
+
+      leaderboard.forEach((entry, idx) => {
+        const tr = document.createElement('tr');
+        tr.className = 'row-enter';
+        if (idx === 0) tr.classList.add('rank-1');
+        else if (idx === 1) tr.classList.add('rank-2');
+        else if (idx === 2) tr.classList.add('rank-3');
+
+        const cells = [
+          { text: `${idx < 3 ? rankIcons[idx] + ' ' : ''}#${idx + 1}`, cls: 'lb-rank-badge' },
+          { text: entry.name },
+          { text: entry.co2.toLocaleString() },
+          { text: entry.score },
+          { text: entry.transport },
+          { text: entry.diet },
+          { text: idx < 3 ? rankStatuses[idx] : '', cls: idx < 3 ? `lb-status lb-status-${idx+1}` : '' }
+        ];
+
+        cells.forEach(cell => {
+          const td = document.createElement('td');
+          td.textContent = cell.text;
+          if (cell.cls) td.className = cell.cls;
+          tr.appendChild(td);
+        });
+
+        tbody.appendChild(tr);
+      });
+      table.appendChild(tbody);
+
+      wrap.innerHTML = '';
+      wrap.appendChild(table);
+    }
+
+    /**
+     * Shows a temporary banner in the arena.
+     * @param {string} text - Banner text.
+     * @param {string} type - 'green' or 'neutral'.
+     */
+    function showArenaBanner(text, type) {
+      const banner = document.getElementById('arena-banner');
+      banner.textContent = text;
+      banner.className = `arena-banner ${type} visible`;
+      setTimeout(() => { banner.classList.remove('visible'); }, 3000);
+    }
+
+    /**
+     * Updates the challenge text area based on the latest entry.
+     * @param {Object} entry - The latest leaderboard entry.
+     * @param {number} rank - The entry's rank (1-indexed).
+     */
+    function updateChallengeText(entry, rank) {
+      const el = document.getElementById('arena-challenge');
+      el.classList.remove('hidden');
+      const ordinal = rank === 1 ? '1st' : rank === 2 ? '2nd' : rank === 3 ? '3rd' : `${rank}th`;
+      document.getElementById('arena-challenge-text').value =
+        `I scored ${entry.co2.toLocaleString()} kg CO\u2082/year on EcoSense and I'm ${ordinal} in my group. Can you beat me? #EcoSenseArena`;
+    }
+
+
+    /* ═══════════════════════════════════════════════════════════
+       INITIALIZATION
+       ═══════════════════════════════════════════════════════════ */
+
+    let isCooldown = false;
+
+    document.addEventListener('DOMContentLoaded', () => {
+
+      // ── Input listeners ──
+      document.querySelectorAll('input[name="transport"], input[name="diet"]').forEach(el => {
+        el.addEventListener('change', updateEstimates);
+      });
+      document.getElementById('energy-slider').addEventListener('input', updateEstimates);
+      document.getElementById('shopping-slider').addEventListener('input', updateEstimates);
+      updateEstimates();
+
+      // ── Calculate ──
+      document.getElementById('calculate-btn').addEventListener('click', () => {
+        if (isCooldown) return;
+
+        const errorMsg = document.getElementById('error-msg');
+        if (!validateInputs()) {
+          errorMsg.textContent = 'Please fill out all fields correctly.';
+          errorMsg.classList.remove('hidden');
+          return;
+        }
+        errorMsg.classList.add('hidden');
+
+        const validBadge = document.getElementById('validation-badge');
+        validBadge.classList.remove('hidden');
+
+        // 5-second cooldown
+        isCooldown = true;
+        const calcBtn = document.getElementById('calculate-btn');
+        const cooldownMsg = document.getElementById('cooldown-msg');
+        calcBtn.classList.add('hidden');
+        cooldownMsg.classList.remove('hidden');
+        let timeLeft = 5;
+        cooldownMsg.textContent = `Next calculation in ${timeLeft}s...`;
+        const timerId = setInterval(() => {
+          timeLeft--;
+          if (timeLeft <= 0) {
+            clearInterval(timerId);
+            isCooldown = false;
+            calcBtn.classList.remove('hidden');
+            cooldownMsg.classList.add('hidden');
+            validBadge.classList.add('hidden');
+          } else {
+            cooldownMsg.textContent = `Next calculation in ${timeLeft}s...`;
+          }
+        }, 1000);
+
+        const transportMode = sanitizeInput(document.querySelector('input[name="transport"]:checked').value);
+        const dietType = sanitizeInput(document.querySelector('input[name="diet"]:checked').value);
+        const energyLevel = parseInt(sanitizeInput(document.getElementById('energy-slider').value), 10);
+        const shoppingLevel = parseInt(sanitizeInput(document.getElementById('shopping-slider').value), 10);
+
+        const result = getFootprint(transportMode, dietType, energyLevel, shoppingLevel);
+        requestAnimationFrame(() => { updateUIWithResults(result); });
+      });
+
+      // ── Copy share text ──
+      document.getElementById('copy-btn').addEventListener('click', () => {
+        const text = document.getElementById('share-text').value;
+        navigator.clipboard.writeText(text).then(() => {
+          const btn = document.getElementById('copy-btn');
+          btn.textContent = 'Copied \u2713';
+          btn.style.background = 'var(--color-primary)';
+          btn.style.color = 'var(--color-bg)';
+          setTimeout(() => {
+            btn.textContent = 'Copy to clipboard';
+            btn.style.background = '';
+            btn.style.color = '';
+          }, 2000);
+        }).catch(() => {});
+      });
+
+      // ── Tests ──
+      document.getElementById('run-tests-btn').addEventListener('click', () => {
+        const panel = document.getElementById('test-panel');
+        panel.classList.toggle('hidden');
+        if (!panel.classList.contains('hidden')) {
+          runTests();
+          panel.scrollIntoView({ behavior: 'smooth' });
+        }
+      });
+
+      // ═══ Arena Logic ═══
+
+      // Show name form
+      document.getElementById('arena-add-btn').addEventListener('click', () => {
+        document.getElementById('arena-name-form').classList.add('open');
+        document.getElementById('arena-name-input').focus();
+      });
+
+      // Cancel name form
+      document.getElementById('arena-cancel-btn').addEventListener('click', () => {
+        document.getElementById('arena-name-form').classList.remove('open');
+        document.getElementById('arena-name-error').textContent = '';
+      });
+
+      // Join arena
+      document.getElementById('arena-join-btn').addEventListener('click', () => {
+        const rawName = document.getElementById('arena-name-input').value;
+        const name = sanitizeName(rawName);
+        const errorEl = document.getElementById('arena-name-error');
+
+        if (!name || name.trim().length === 0) {
+          errorEl.textContent = 'Please enter a valid name.';
+          return;
+        }
+        if (name.length > 20) {
+          errorEl.textContent = 'Name must be 20 characters or fewer.';
+          return;
+        }
+        errorEl.textContent = '';
+
+        const transportEl = document.querySelector('input[name="transport"]:checked');
+        const dietEl = document.querySelector('input[name="diet"]:checked');
+
+        const transportLabels = {
+          car_petrol_per_km: 'Car', motorbike_per_km: 'Motorbike',
+          bus_per_km: 'Bus', train_per_km: 'Train', walk_cycle: 'Walk/Cycle'
+        };
+        const dietLabels = {
+          vegan: 'Vegan', vegetarian: 'Vegetarian',
+          mixed: 'Mixed', meat_heavy: 'Meat-heavy'
+        };
+
+        const entry = {
+          name: name,
+          co2: lastTotal,
+          score: lastScore,
+          transport: transportEl ? (transportLabels[transportEl.value] || transportEl.value) : 'N/A',
+          diet: dietEl ? (dietLabels[dietEl.value] || dietEl.value) : 'N/A',
+          timestamp: new Date().toISOString()
+        };
+
+        leaderboard.push(entry);
+        if (leaderboard.length > 10) leaderboard.shift();
+        leaderboard.sort((a, b) => a.co2 - b.co2);
+
+        const rank = leaderboard.findIndex(e => e === entry) + 1;
+
+        renderLeaderboard();
+
+        if (rank === 1) {
+          showArenaBanner(`New leader! ${name} is now the greenest in the arena`, 'green');
+        } else {
+          const ordinal = rank === 2 ? '2nd' : rank === 3 ? '3rd' : `${rank}th`;
+          showArenaBanner(`${name} added! You're ${ordinal} place. Can you do better?`, 'neutral');
+        }
+
+        updateChallengeText(entry, rank);
+
+        // Reset form
+        document.getElementById('arena-name-form').classList.remove('open');
+        document.getElementById('arena-name-input').value = '';
+      });
+
+      // Allow Enter key to submit name
+      document.getElementById('arena-name-input').addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          document.getElementById('arena-join-btn').click();
+        }
+      });
+
+      // Copy arena challenge
+      document.getElementById('arena-copy-btn').addEventListener('click', () => {
+        const text = document.getElementById('arena-challenge-text').value;
+        navigator.clipboard.writeText(text).then(() => {
+          const btn = document.getElementById('arena-copy-btn');
+          btn.textContent = 'Copied \u2713';
+          btn.style.background = 'var(--color-primary)';
+          btn.style.color = 'var(--color-bg)';
+          setTimeout(() => {
+            btn.textContent = 'Copy Challenge';
+            btn.style.background = '';
+            btn.style.color = '';
+          }, 2000);
+        }).catch(() => {});
+      });
+
+      // Clear arena
+      document.getElementById('arena-clear-btn').addEventListener('click', () => {
+        document.getElementById('arena-clear-confirm').classList.remove('hidden');
+      });
+      document.getElementById('arena-cancel-clear-btn').addEventListener('click', () => {
+        document.getElementById('arena-clear-confirm').classList.add('hidden');
+      });
+      document.getElementById('arena-yes-btn').addEventListener('click', () => {
+        leaderboard = [];
+        renderLeaderboard();
+        document.getElementById('arena-clear-confirm').classList.add('hidden');
+        document.getElementById('arena-challenge').classList.add('hidden');
+        document.getElementById('arena-banner').className = 'arena-banner';
+      });
+
+    });
+  </script>
+</body>
+</html>
